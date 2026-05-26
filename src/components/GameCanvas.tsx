@@ -1,11 +1,18 @@
-import { useEffect, useRef } from 'react';
-import type { Dispatch, PointerEvent, SetStateAction } from 'react';
-import { CHARACTER, COLLECTION, FLOWER_SPRITE, HEART, SPRITE, WORLD } from '../game/config';
-import { isWithinRadius } from '../game/collision';
-import { moveToward, nextFacing, updateCamera } from '../game/movement';
-import { renderGame } from '../game/renderer';
-import { createVisibleHeartPosition } from '../game/spawn';
-import type { GameState, Vector } from '../game/types';
+import { useEffect, useRef } from "react";
+import type { Dispatch, PointerEvent, SetStateAction } from "react";
+import {
+  CHARACTER,
+  COLLECTION,
+  FLOWER_SPRITE,
+  HEART,
+  SPRITE,
+  WORLD,
+} from "../game/config";
+import { isWithinRadius } from "../game/collision";
+import { moveToward, nextFacing, updateCamera } from "../game/movement";
+import { renderGame } from "../game/renderer";
+import { createVisibleHeartPosition } from "../game/spawn";
+import type { GameState, Vector } from "../game/types";
 
 type GameCanvasProps = {
   state: GameState;
@@ -13,7 +20,11 @@ type GameCanvasProps = {
   onFirstInteraction: () => void;
 };
 
-export default function GameCanvas({ state, setState, onFirstInteraction }: GameCanvasProps) {
+export default function GameCanvas({
+  state,
+  setState,
+  onFirstInteraction,
+}: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef(state);
   const spriteRef = useRef<HTMLImageElement | null>(null);
@@ -45,13 +56,13 @@ export default function GameCanvas({ state, setState, onFirstInteraction }: Game
       const ratio = window.devicePixelRatio || 1;
       canvas.width = Math.floor(rect.width * ratio);
       canvas.height = Math.floor(rect.height * ratio);
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       ctx?.setTransform(ratio, 0, 0, ratio, 0, 0);
     };
 
     resize();
-    window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
   }, []);
 
   useEffect(() => {
@@ -59,7 +70,7 @@ export default function GameCanvas({ state, setState, onFirstInteraction }: Game
 
     const tick = (time: number) => {
       const canvas = canvasRef.current;
-      const ctx = canvas?.getContext('2d');
+      const ctx = canvas?.getContext("2d");
       if (!canvas || !ctx) {
         frame = requestAnimationFrame(tick);
         return;
@@ -71,7 +82,10 @@ export default function GameCanvas({ state, setState, onFirstInteraction }: Game
       lastTimeRef.current = time;
 
       setState((current) => {
-        const next = updateGame(current, deltaSeconds, { width: rect.width, height: rect.height });
+        const next = updateGame(current, deltaSeconds, {
+          width: rect.width,
+          height: rect.height,
+        });
         stateRef.current = next;
         renderGame({
           ctx,
@@ -117,11 +131,20 @@ export default function GameCanvas({ state, setState, onFirstInteraction }: Game
         facing: nextFacing(previous.character.position, target),
         isWalking: true,
       },
-      lastMessage: previous.phase === 'heart' ? 'Quick, catch the heart!' : previous.lastMessage,
+      lastMessage:
+        previous.phase === "heart"
+          ? "Quick, catch the heart!"
+          : previous.lastMessage,
     }));
   };
 
-  return <canvas ref={canvasRef} className="game-canvas" onPointerDown={handlePointerDown} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="game-canvas"
+      onPointerDown={handlePointerDown}
+    />
+  );
 }
 
 function updateGame(
@@ -129,7 +152,7 @@ function updateGame(
   deltaSeconds: number,
   viewport: { width: number; height: number },
 ): GameState {
-  if (current.phase === 'success' || current.phase === 'retry') {
+  if (current.phase === "success" || current.phase === "retry") {
     return current;
   }
 
@@ -146,13 +169,26 @@ function updateGame(
   };
 
   const camera = {
-    position: updateCamera(current.camera.position, character.position, viewport, WORLD, WORLD.cameraEase),
+    position: updateCamera(
+      current.camera.position,
+      character.position,
+      viewport,
+      WORLD,
+      WORLD.cameraEase,
+    ),
   };
 
-  if (current.phase === 'collecting') {
+  if (current.phase === "collecting") {
     const collectedOrder = [...current.collectedOrder];
     const flowers = current.flowers.map((flower) => {
-      if (!flower.collected && isWithinRadius(character.position, flower.position, COLLECTION.flowerRadius)) {
+      if (
+        !flower.collected &&
+        isWithinRadius(
+          character.position,
+          flower.position,
+          COLLECTION.flowerRadius,
+        )
+      ) {
         collectedOrder.push(flower.id);
         return { ...flower, collected: true };
       }
@@ -163,55 +199,64 @@ function updateGame(
     if (allCollected) {
       return {
         ...current,
-        phase: 'heart',
+        phase: "heart",
         character,
         camera,
         flowers,
         collectedOrder,
         heart: {
           active: true,
-          position: createVisibleHeartPosition(character.position, camera.position, viewport),
+          position: createVisibleHeartPosition(
+            character.position,
+            camera.position,
+            viewport,
+          ),
           timerMs: HEART.durationMs,
         },
-        lastMessage: 'The heart appeared. Quick!',
+        lastMessage: "The heart appeared. Quick!",
       };
     }
 
     return { ...current, character, camera, flowers, collectedOrder };
   }
 
-  if (current.phase === 'heart') {
+  if (current.phase === "heart") {
     const timerMs = Math.max(0, current.heart.timerMs - deltaSeconds * 1000);
     const reachedHeart = Boolean(
-      current.heart.position && isWithinRadius(character.position, current.heart.position, COLLECTION.heartRadius),
+      current.heart.position &&
+      isWithinRadius(
+        character.position,
+        current.heart.position,
+        COLLECTION.heartRadius,
+      ),
     );
 
     if (reachedHeart) {
       const settledCharacter = {
         ...character,
         target: character.position,
-        facing: 'front' as const,
+        facing: "front" as const,
         isWalking: false,
       };
 
       return {
         ...current,
-        phase: 'success',
+        phase: "success",
         character: settledCharacter,
         camera,
         heart: { ...current.heart, timerMs, active: false },
-        lastMessage: 'You caught the heart.',
+        lastMessage: "You caught the heart.",
       };
     }
 
     if (timerMs <= 0) {
       return {
         ...current,
-        phase: 'retry',
+        phase: "retry",
         character,
         camera,
         heart: { ...current.heart, timerMs: 0, active: false },
-        lastMessage: 'The heart got shy. Let us gather the bouquet again.',
+        lastMessage: "Время вышло :( Попробуй  еще раз! ",
       };
     }
 
@@ -228,7 +273,13 @@ function updateGame(
 
 function clampToWorld(point: Vector): Vector {
   return {
-    x: Math.min(WORLD.width - WORLD.safePadding, Math.max(WORLD.safePadding, point.x)),
-    y: Math.min(WORLD.height - WORLD.safePadding, Math.max(WORLD.safePadding, point.y)),
+    x: Math.min(
+      WORLD.width - WORLD.safePadding,
+      Math.max(WORLD.safePadding, point.x),
+    ),
+    y: Math.min(
+      WORLD.height - WORLD.safePadding,
+      Math.max(WORLD.safePadding, point.y),
+    ),
   };
 }
