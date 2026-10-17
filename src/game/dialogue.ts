@@ -26,7 +26,7 @@ export const DIALOGUE: Array<{ speaker: 'Она' | 'Ты'; text: string; emphasi
   { speaker: 'Ты', text: 'Остался последний вопрос.', emphasis: true },
   { speaker: 'Она', text: 'Опять школьная программа?' },
   { speaker: 'Ты', text: 'Нет. Тут я сам ответа не знаю.', nextLabel: 'Слушаю…' },
-  { speaker: 'Ты', text: 'Ты мне нравишься. Мне с тобой хорошо, и я хочу быть с тобой. Ты будешь моей девушкой?' },
+  { speaker: 'Ты', text: 'Я люблю тебя подкалывать, но сейчас серьёзно. Ты мне очень нравишься. Хочу чаще тебя видеть, обнимать и просто быть рядом. Будешь моей девушкой?' },
 ];
 
 export function advanceDialogue(state: GameState, choice?: number): GameState {
