@@ -1,32 +1,30 @@
 import { useEffect, useRef } from "react";
 import type { Dispatch, PointerEvent, SetStateAction } from "react";
-import {
-  CHARACTER,
-  COLLECTION,
-  FLOWER_SPRITE,
-  HEART,
-  SPRITE,
-  WORLD,
-} from "../game/config";
-import { isWithinRadius } from "../game/collision";
-import { moveToward, nextFacing, updateCamera } from "../game/movement";
+import { FLOWER_SPRITE, WORLD } from "../game/config";
+import { nextFacing } from "../game/movement";
+import { updateGame } from "../game/update";
 import { renderGame } from "../game/renderer";
-import { createVisibleHeartPosition } from "../game/spawn";
-import type { GameState, Vector } from "../game/types";
+import { BOY_SPRITE, GIRL_SPRITE } from "../game/character-sprites";
+import type { Character, GameState, Vector } from "../game/types";
 
 type GameCanvasProps = {
   state: GameState;
   setState: Dispatch<SetStateAction<GameState>>;
   onFirstInteraction: () => void;
+  preview?: { facing: Character["facing"]; walking: boolean };
 };
 
 export default function GameCanvas({
   state,
   setState,
   onFirstInteraction,
+  preview,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef(state);
+  const previewRef = useRef(preview);
+  previewRef.current = preview;
+  const companionSpriteRef = useRef<HTMLImageElement | null>(null);
   const spriteRef = useRef<HTMLImageElement | null>(null);
   const flowerSpriteRef = useRef<HTMLImageElement | null>(null);
   const lastTimeRef = useRef<number | null>(null);
@@ -37,7 +35,10 @@ export default function GameCanvas({
 
   useEffect(() => {
     const sprite = new Image();
-    sprite.src = SPRITE.src;
+    sprite.src = GIRL_SPRITE.src;
+    const companionSprite = new Image();
+    companionSprite.src = BOY_SPRITE.src;
+    companionSpriteRef.current = companionSprite;
     spriteRef.current = sprite;
 
     const flowerSprite = new Image();
@@ -82,7 +83,7 @@ export default function GameCanvas({
       lastTimeRef.current = time;
 
       setState((current) => {
-        const next = updateGame(current, deltaSeconds, {
+        const next = previewRef.current ? current : updateGame(current, deltaSeconds, {
           width: rect.width,
           height: rect.height,
         });
@@ -90,11 +91,22 @@ export default function GameCanvas({
         renderGame({
           ctx,
           viewport: { width: rect.width, height: rect.height },
-          camera: next.camera,
-          character: next.character,
+          camera: previewRef.current ? { position: { x: 360, y: Math.min(900, WORLD.height - rect.height / 2) } } : next.camera,
+          character: previewRef.current ? {
+            ...next.character, position: { x: 310, y: 900 },
+            facing: previewRef.current.facing, isWalking: previewRef.current.walking,
+          } : next.character,
+          companion: previewRef.current ? {
+            position: { x: previewRef.current ? 410 : 460, y: 900 },
+            target: { x: 460, y: 900 },
+            facing: previewRef.current?.facing ?? 'front',
+            isWalking: previewRef.current?.walking ?? false,
+          } : next.scene?.companion ?? null,
+          companionSprite: companionSpriteRef.current,
           flowers: next.flowers,
           decor: next.decor,
           heart: next.heart,
+          celebrating: next.phase === 'complete' && next.scene?.answer === 'yes',
           sprite: spriteRef.current,
           flowerSprite: flowerSpriteRef.current,
         });
@@ -114,6 +126,7 @@ export default function GameCanvas({
       return;
     }
 
+    if (previewRef.current || stateRef.current.phase !== "collecting") return;
     onFirstInteraction();
     canvas.setPointerCapture(event.pointerId);
     const rect = canvas.getBoundingClientRect();
@@ -123,7 +136,7 @@ export default function GameCanvas({
       y: event.clientY - rect.top + current.camera.position.y - rect.height / 2,
     };
 
-    setState((previous) => ({
+    setState((previous) => previous.phase !== "collecting" ? previous : ({
       ...previous,
       character: {
         ...previous.character,
@@ -131,10 +144,7 @@ export default function GameCanvas({
         facing: nextFacing(previous.character.position, target),
         isWalking: true,
       },
-      lastMessage:
-        previous.phase === "heart"
-          ? "Quick, catch the heart!"
-          : previous.lastMessage,
+      lastMessage: previous.lastMessage,
     }));
   };
 
@@ -145,130 +155,6 @@ export default function GameCanvas({
       onPointerDown={handlePointerDown}
     />
   );
-}
-
-function updateGame(
-  current: GameState,
-  deltaSeconds: number,
-  viewport: { width: number; height: number },
-): GameState {
-  if (current.phase === "success" || current.phase === "retry") {
-    return current;
-  }
-
-  const moved = moveToward(
-    current.character.position,
-    current.character.target,
-    CHARACTER.speedPixelsPerSecond,
-    deltaSeconds,
-  );
-  const character = {
-    ...current.character,
-    position: moved.position,
-    isWalking: !moved.reached,
-  };
-
-  const camera = {
-    position: updateCamera(
-      current.camera.position,
-      character.position,
-      viewport,
-      WORLD,
-      WORLD.cameraEase,
-    ),
-  };
-
-  if (current.phase === "collecting") {
-    const collectedOrder = [...current.collectedOrder];
-    const flowers = current.flowers.map((flower) => {
-      if (
-        !flower.collected &&
-        isWithinRadius(
-          character.position,
-          flower.position,
-          COLLECTION.flowerRadius,
-        )
-      ) {
-        collectedOrder.push(flower.id);
-        return { ...flower, collected: true };
-      }
-      return flower;
-    });
-
-    const allCollected = flowers.every((flower) => flower.collected);
-    if (allCollected) {
-      return {
-        ...current,
-        phase: "heart",
-        character,
-        camera,
-        flowers,
-        collectedOrder,
-        heart: {
-          active: true,
-          position: createVisibleHeartPosition(
-            character.position,
-            camera.position,
-            viewport,
-          ),
-          timerMs: HEART.durationMs,
-        },
-        lastMessage: "The heart appeared. Quick!",
-      };
-    }
-
-    return { ...current, character, camera, flowers, collectedOrder };
-  }
-
-  if (current.phase === "heart") {
-    const timerMs = Math.max(0, current.heart.timerMs - deltaSeconds * 1000);
-    const reachedHeart = Boolean(
-      current.heart.position &&
-      isWithinRadius(
-        character.position,
-        current.heart.position,
-        COLLECTION.heartRadius,
-      ),
-    );
-
-    if (reachedHeart) {
-      const settledCharacter = {
-        ...character,
-        target: character.position,
-        facing: "front" as const,
-        isWalking: false,
-      };
-
-      return {
-        ...current,
-        phase: "success",
-        character: settledCharacter,
-        camera,
-        heart: { ...current.heart, timerMs, active: false },
-        lastMessage: "You caught the heart.",
-      };
-    }
-
-    if (timerMs <= 0) {
-      return {
-        ...current,
-        phase: "retry",
-        character,
-        camera,
-        heart: { ...current.heart, timerMs: 0, active: false },
-        lastMessage: "Время вышло :( Попробуй  еще раз! ",
-      };
-    }
-
-    return {
-      ...current,
-      character,
-      camera,
-      heart: { ...current.heart, timerMs },
-    };
-  }
-
-  return current;
 }
 
 function clampToWorld(point: Vector): Vector {

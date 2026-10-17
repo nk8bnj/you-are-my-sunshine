@@ -1,4 +1,4 @@
-export type GamePhase = 'collecting' | 'heart' | 'success' | 'retry';
+export type GamePhase = 'collecting' | 'heart' | 'success' | 'retry' | 'meeting' | 'dialogue' | 'complete';
 
 export type Vector = {
   x: number;
@@ -56,6 +56,14 @@ export type HeartState = {
 
 export type GameState = {
   phase: GamePhase;
+  scene: {
+    stage: 'positioning' | 'entering' | 'talking';
+    companion: Character;
+    dialogueIndex: number;
+    reaction: string | null;
+    answer: 'yes' | 'no' | null;
+    proposalPauseMs: number;
+  } | null;
   character: Character;
   camera: Camera;
   flowers: Flower[];

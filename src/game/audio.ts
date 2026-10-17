@@ -6,12 +6,15 @@ type GameAudio = {
   stopMusic: () => void;
   toggleMusic: () => Promise<boolean>;
   isMusicPlaying: () => boolean;
+  setQuiet: (quiet: boolean) => void;
 };
 
 export function createGameAudio(): GameAudio {
   let context: AudioContext | null = null;
   let music: HTMLAudioElement | null = null;
   let flowerSample: HTMLAudioElement | null = null;
+  let targetVolume = 0.18;
+  let fadeFrame = 0;
   const lastPlayedAt = new Map<string, number>();
 
   const getContext = () => {
@@ -30,7 +33,7 @@ export function createGameAudio(): GameAudio {
     if (!music) {
       music = new Audio('/assets/203099__benpm__groove-music.wav');
       music.loop = true;
-      music.volume = 0.18;
+      music.volume = targetVolume;
       music.preload = 'auto';
     }
 
@@ -139,5 +142,19 @@ export function createGameAudio(): GameAudio {
       return false;
     },
     isMusicPlaying: () => Boolean(music && !music.paused),
+    setQuiet: (quiet) => {
+      targetVolume = quiet ? 0.065 : 0.18;
+      cancelAnimationFrame(fadeFrame);
+      if (!music) return;
+      const track = music;
+      const initialVolume = track.volume;
+      const start = performance.now();
+      const fade = (now: number) => {
+        const progress = Math.min(1, (now - start) / 650);
+        track.volume = initialVolume + (targetVolume - initialVolume) * progress;
+        if (progress < 1) fadeFrame = requestAnimationFrame(fade);
+      };
+      fadeFrame = requestAnimationFrame(fade);
+    },
   };
 }

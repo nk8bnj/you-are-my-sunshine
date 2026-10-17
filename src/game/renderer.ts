@@ -1,12 +1,8 @@
-import { CHARACTER, COLLECTION, FLOWER_SPRITE, SPRITE, WORLD } from './config';
+import { CHARACTER, FLOWER_SPRITE, WORLD } from './config';
 import type { Camera, Character, DecorItem, Flower, HeartState, Vector } from './types';
 
-type SpriteFrame = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
+import { BOY_SPRITE, GIRL_SPRITE, getCharacterFrame } from './character-sprites';
+import type { CharacterSprite, SpriteFrame } from './character-sprites';
 
 const cleanedSpriteFrames = new WeakMap<HTMLImageElement, Map<string, HTMLCanvasElement>>();
 
@@ -20,6 +16,9 @@ export type RenderInput = {
   heart: HeartState;
   sprite: HTMLImageElement | null;
   flowerSprite: HTMLImageElement | null;
+  companion: Character | null;
+  companionSprite: HTMLImageElement | null;
+  celebrating?: boolean;
 };
 
 export function renderGame(input: RenderInput): void {
@@ -30,7 +29,6 @@ export function renderGame(input: RenderInput): void {
   ctx.imageSmoothingEnabled = false;
 
   drawMeadow(ctx, viewport, camera);
-  drawWorldEdgeBushes(ctx, viewport, camera);
   drawDecor(ctx, viewport, camera, decor, time);
 
   for (const flower of flowers) {
@@ -44,29 +42,116 @@ export function renderGame(input: RenderInput): void {
     drawHeart(ctx, screen.x, screen.y, time);
   }
 
-  drawCharacter(ctx, character, camera, viewport, sprite, time);
+  const actors = [
+    { character, image: sprite, config: GIRL_SPRITE },
+    ...(input.companion ? [{ character: input.companion, image: input.companionSprite, config: BOY_SPRITE }] : []),
+  ].sort((a, b) => a.character.position.y - b.character.position.y);
+  for (const actor of actors) {
+    drawCharacter(ctx, actor.character, camera, viewport, actor.image, time, actor.config);
+  }
+  if (input.celebrating && input.companion) {
+    if (!character.isWalking && !input.companion.isWalking && character.facing === 'front' && input.companion.facing === 'front') {
+      drawJoinedHands(ctx, toScreen(character.position, camera, viewport), toScreen(input.companion.position, camera, viewport));
+    }
+    const center = toScreen({ x: (character.position.x + input.companion.position.x) / 2,
+      y: character.position.y - 150 }, camera, viewport);
+    ctx.save(); ctx.translate(Math.round(center.x), Math.round(center.y)); ctx.scale(.38, .38);
+    drawHeart(ctx, 0, 0, time); ctx.restore();
+  }
 }
 
+function drawJoinedHands(ctx: CanvasRenderingContext2D, girl: Vector, boy: Vector): void {
+  const centerX = Math.round((girl.x + boy.x) / 2);
+  const handY = Math.round(girl.y - 16);
+  // Pixel-stepped sleeves cover the resting inner hands and extend toward the clasp.
+  ctx.fillStyle = '#17294c';
+  ctx.fillRect(Math.round(girl.x + 15), handY - 11, 7, 14);
+  ctx.fillRect(Math.round(girl.x + 19), handY - 6, 6, 7);
+  ctx.fillStyle = '#24212b';
+  ctx.fillRect(Math.round(boy.x - 23), handY - 19, 8, 11);
+  ctx.fillRect(Math.round(boy.x - 25), handY - 12, 7, 9);
+  ctx.fillRect(centerX + 1, handY - 5, 6, 6);
+  ctx.fillStyle = '#ac7253'; ctx.fillRect(centerX - 4, handY - 3, 9, 6);
+  ctx.fillStyle = '#efb28b'; ctx.fillRect(centerX - 4, handY - 3, 5, 4);
+  ctx.fillStyle = '#f6c59c'; ctx.fillRect(centerX, handY - 2, 4, 4);
+}
+
+let gardenLayer: HTMLCanvasElement | null = null;
+
 function drawMeadow(ctx: CanvasRenderingContext2D, viewport: { width: number; height: number }, camera: Camera): void {
-  ctx.fillStyle = '#9fd58a';
+  if (!gardenLayer) gardenLayer = createGardenLayer();
+  ctx.fillStyle = '#64886a';
   ctx.fillRect(0, 0, viewport.width, viewport.height);
+  const origin = toScreen({ x: 0, y: 0 }, camera, viewport);
+  ctx.drawImage(gardenLayer, Math.round(origin.x), Math.round(origin.y));
+}
 
-  const tile = 32;
-  const startWorldX = Math.floor((camera.position.x - viewport.width / 2) / tile) * tile;
-  const startWorldY = Math.floor((camera.position.y - viewport.height / 2) / tile) * tile;
-  const endWorldX = camera.position.x + viewport.width / 2 + tile;
-  const endWorldY = camera.position.y + viewport.height / 2 + tile;
-
-  for (let x = startWorldX; x < endWorldX; x += tile) {
-    for (let y = startWorldY; y < endWorldY; y += tile) {
-      const screen = toScreen({ x, y }, camera, viewport);
-      ctx.fillStyle = (x / tile + y / tile) % 3 === 0 ? '#94cb80' : '#a4d890';
-      ctx.fillRect(screen.x, screen.y, tile, tile);
-      ctx.fillStyle = '#75b96b';
-      ctx.fillRect(screen.x + 8, screen.y + 18, 3, 8);
-      ctx.fillRect(screen.x + 20, screen.y + 9, 3, 7);
+function createGardenLayer(): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = WORLD.width;
+  canvas.height = WORLD.height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#92b77e';
+  ctx.fillRect(0, 0, WORLD.width, WORLD.height);
+  // Seeded texture stays anchored to the world and is painted only once.
+  let seed = 741;
+  const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < 1050; i++) {
+    const x = Math.floor(random() * WORLD.width / 4) * 4;
+    const y = Math.floor(random() * WORLD.height / 4) * 4;
+    ctx.fillStyle = ['#9cbe86', '#89ad75', '#96b982', '#a3c38c'][i % 4];
+    ctx.fillRect(x, y, 12 + Math.floor(random() * 6) * 4, 4 + Math.floor(random() * 3) * 4);
+  }
+  // A winding sandy walk opens into a quiet clearing for the conversation.
+  for (let y = 30; y < WORLD.height - 26; y += 4) {
+    const center = 360 + Math.sin(y / 170) * 65;
+    const clearing = Math.max(0, 1 - ((y - 820) / 100) ** 2);
+    const half = Math.max(36, Math.sqrt(clearing) * 132);
+    const x = Math.round((center - half) / 4) * 4;
+    const width = Math.round(half * 2 / 4) * 4;
+    ctx.fillStyle = '#819c68'; ctx.fillRect(x - 8, y + 4, width + 16, 4);
+    ctx.fillStyle = '#b5b783'; ctx.fillRect(x - 4, y, width + 8, 4);
+    ctx.fillStyle = '#ddcaa3'; ctx.fillRect(x, y, width, 4);
+    if (y % 20 === 2) { ctx.fillStyle = '#e5d4af'; ctx.fillRect(x + 12, y, Math.min(20, width - 16), 2); }
+  }
+  for (let i = 0; i < 650; i++) {
+    const x = Math.floor(random() * WORLD.width / 4) * 4;
+    const y = Math.floor(random() * WORLD.height / 4) * 4;
+    const center = 360 + Math.sin(y / 170) * 65;
+    const half = Math.max(36, Math.sqrt(Math.max(0, 1 - ((y - 820) / 100) ** 2)) * 132);
+    if (Math.abs(x - center) < half - 8) {
+      ctx.fillStyle = i % 2 ? '#c9b68f' : '#f0dfbc'; ctx.fillRect(x, y, 4, 2);
+    } else {
+      ctx.fillStyle = i % 3 ? '#78a16c' : '#abc78e';
+      ctx.fillRect(x, y, 2, 5); ctx.fillRect(x + 4, y - 2, 2, 6);
     }
   }
+  const bush = (x: number, y: number, blossoms: boolean) => {
+    ctx.fillStyle = '#67835b'; ctx.fillRect(x - 22, y + 8, 48, 12);
+    ctx.fillStyle = '#4f7954'; ctx.fillRect(x - 26, y - 6, 52, 20); ctx.fillRect(x - 18, y - 18, 36, 40);
+    ctx.fillStyle = '#638f5d'; ctx.fillRect(x - 22, y - 10, 40, 18); ctx.fillRect(x - 12, y - 22, 28, 32);
+    ctx.fillStyle = '#7da267'; ctx.fillRect(x - 14, y - 16, 12, 6); ctx.fillRect(x + 6, y - 10, 10, 4);
+    if (blossoms) for (const [dx, dy] of [[-12, -8], [9, -14], [15, 5], [-4, 7]]) {
+      ctx.fillStyle = '#d9a1b0'; ctx.fillRect(x + dx - 3, y + dy - 3, 8, 8);
+      ctx.fillStyle = '#f5d6cb'; ctx.fillRect(x + dx, y + dy, 3, 3);
+    }
+  };
+  for (let y = 25; y < WORLD.height; y += 36) {
+    bush(24, y, y % 3 === 0); bush(WORLD.width - 24, y, y % 4 === 0);
+  }
+  for (let x = 40; x < WORLD.width; x += 38) {
+    bush(x, 22, x % 3 === 0); bush(x, WORLD.height - 20, x % 4 === 0);
+  }
+  for (const [x, y] of [[150, 230], [180, 250], [552, 395], [578, 415], [145, 610], [170, 628], [560, 950], [585, 965]]) bush(x, y, true);
+  // Small clusters of ground flowers are distinct from collectible tall flowers.
+  for (let i = 0; i < 42; i++) {
+    const x = (i % 2 ? 142 : 550) + Math.floor(random() * 50);
+    const y = 100 + Math.floor(random() * 900);
+    ctx.fillStyle = '#668c5b'; ctx.fillRect(x, y + 2, 2, 6);
+    ctx.fillStyle = i % 3 ? '#f3e5bf' : '#dfacb8';
+    ctx.fillRect(x - 2, y, 6, 2); ctx.fillRect(x, y - 2, 2, 6);
+  }
+  return canvas;
 }
 
 function drawDecor(
@@ -172,15 +257,6 @@ function drawButterfly(ctx: CanvasRenderingContext2D, x: number, y: number, vari
   ctx.fillRect(x + 2, y - 9, 2, 2);
 }
 
-function drawWorldEdgeBushes(ctx: CanvasRenderingContext2D, viewport: { width: number; height: number }, camera: Camera): void {
-  ctx.fillStyle = '#5aa35f';
-  const topLeft = toScreen({ x: 0, y: 0 }, camera, viewport);
-  const bottomRight = toScreen({ x: WORLD.width, y: WORLD.height }, camera, viewport);
-  ctx.fillRect(topLeft.x, topLeft.y, WORLD.width, 28);
-  ctx.fillRect(topLeft.x, bottomRight.y - 28, WORLD.width, 28);
-  ctx.fillRect(topLeft.x, topLeft.y, 28, WORLD.height);
-  ctx.fillRect(bottomRight.x - 28, topLeft.y, 28, WORLD.height);
-}
 
 function drawFlower(
   ctx: CanvasRenderingContext2D,
@@ -290,6 +366,7 @@ function drawCharacter(
   viewport: { width: number; height: number },
   sprite: HTMLImageElement | null,
   time: number,
+  config: CharacterSprite,
 ): void {
   const screen = toScreen(character.position, camera, viewport);
 
@@ -298,10 +375,10 @@ function drawCharacter(
   ctx.ellipse(screen.x, screen.y + 10, 28, 10, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  const sourceFrame = getSpriteFrame(character, time);
+  const sourceFrame = getCharacterFrame(character, time, config);
   const frame = sprite?.complete && sprite.naturalWidth > 0 ? getCleanSpriteFrame(sprite, sourceFrame) : null;
   if (frame) {
-    drawSpriteFrame(ctx, frame, character, screen);
+    drawSpriteFrame(ctx, frame, screen, config);
     return;
   }
 
@@ -316,31 +393,12 @@ function drawCharacter(
 function drawSpriteFrame(
   ctx: CanvasRenderingContext2D,
   frame: HTMLCanvasElement,
-  character: Character,
   screen: Vector,
+  config: CharacterSprite,
 ): void {
-  const x = screen.x - CHARACTER.renderWidth / 2;
-  const y = screen.y - CHARACTER.renderHeight + 18;
-
-  if (character.facing !== 'left') {
-    ctx.drawImage(frame, x, y, CHARACTER.renderWidth, CHARACTER.renderHeight);
-    return;
-  }
-
-  ctx.save();
-  ctx.translate(screen.x, 0);
-  ctx.scale(-1, 1);
-  ctx.drawImage(frame, -CHARACTER.renderWidth / 2, y, CHARACTER.renderWidth, CHARACTER.renderHeight);
-  ctx.restore();
-}
-
-function getSpriteFrame(character: Character, time: number): SpriteFrame {
-  const frames = SPRITE.frames[character.facing] ?? SPRITE.frames.front;
-  if (!character.isWalking) {
-    return frames[0] ?? SPRITE.fallbackFrame;
-  }
-
-  return frames[Math.floor(time / SPRITE.frameMs) % frames.length] ?? SPRITE.fallbackFrame;
+  // Each direction has its own artwork: no mirroring or per-frame stretching.
+  ctx.drawImage(frame, Math.round(screen.x - config.renderWidth / 2),
+    Math.round(screen.y - config.renderHeight + 18), config.renderWidth, config.renderHeight);
 }
 
 function getCleanSpriteFrame(sprite: HTMLImageElement, frame: SpriteFrame): HTMLCanvasElement | null {
@@ -357,8 +415,8 @@ function getCleanSpriteFrame(sprite: HTMLImageElement, frame: SpriteFrame): HTML
   }
 
   const canvas = document.createElement('canvas');
-  canvas.width = frame.width;
-  canvas.height = frame.height;
+  canvas.width = 200;
+  canvas.height = 304;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) {
     return null;
@@ -371,73 +429,13 @@ function getCleanSpriteFrame(sprite: HTMLImageElement, frame: SpriteFrame): HTML
     frame.width,
     frame.height,
     0,
-    0,
+    304 - frame.height,
     frame.width,
     frame.height,
   );
 
-  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  removeConnectedCheckerboard(image);
-  ctx.putImageData(image, 0, 0);
   cachedFrames.set(key, canvas);
   return canvas;
-}
-
-function removeConnectedCheckerboard(image: ImageData): void {
-  const { width, height, data } = image;
-  const visited = new Uint8Array(width * height);
-  const queue: number[] = [];
-
-  const enqueue = (x: number, y: number) => {
-    if (x < 0 || y < 0 || x >= width || y >= height) {
-      return;
-    }
-
-    const index = y * width + x;
-    if (visited[index]) {
-      return;
-    }
-
-    const dataIndex = index * 4;
-    if (!isCheckerboardPixel(data[dataIndex], data[dataIndex + 1], data[dataIndex + 2], data[dataIndex + 3])) {
-      return;
-    }
-
-    visited[index] = 1;
-    queue.push(index);
-  };
-
-  for (let x = 0; x < width; x += 1) {
-    enqueue(x, 0);
-    enqueue(x, height - 1);
-  }
-
-  for (let y = 0; y < height; y += 1) {
-    enqueue(0, y);
-    enqueue(width - 1, y);
-  }
-
-  while (queue.length > 0) {
-    const index = queue.shift()!;
-    const x = index % width;
-    const y = Math.floor(index / width);
-    data[index * 4 + 3] = 0;
-
-    enqueue(x + 1, y);
-    enqueue(x - 1, y);
-    enqueue(x, y + 1);
-    enqueue(x, y - 1);
-  }
-}
-
-function isCheckerboardPixel(r: number, g: number, b: number, a: number): boolean {
-  if (a < 8) {
-    return true;
-  }
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  return max - min < 10 && r > 180 && g > 180 && b > 180;
 }
 
 function toScreen(
