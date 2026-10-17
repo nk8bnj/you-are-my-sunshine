@@ -433,7 +433,12 @@ button {
 .start-character img { position: absolute; width: 451.44px; height: 451.44px; max-width: none; left: -45.72px; top: -10.8px; image-rendering: pixelated; }
 .start-description { margin: 0; font-size: 14px; line-height: 1.6; color: #756273; }
 .start-music { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 0; border-top: 1px solid #d8c9c7; color: #695368; font-size: 14px; min-height: 44px; }
-.start-music input { margin-left: auto; width: 20px; height: 20px; accent-color: #79556b; }
+.start-music { background: transparent; text-align: left; }
+.start-music-state {
+  margin-left: auto; display: grid; place-items: center; width: 32px; height: 32px;
+  border: 2px solid #bca9ad; color: #906d7c; background: #f4e9de;
+}
+.start-music[aria-checked="true"] .start-music-state { color: #367849; border-color: #6c9870; background: #e3eedb; }
 .start-primary, .start-secondary { width: 100%; min-height: 46px; padding: 10px; font-size: 15px; }
 .start-primary { background: #79556b; color: #fff7e5; border: 3px solid #60455b; box-shadow: 0 3px 0 #483746; }
 .start-secondary { color: #79556b; background: transparent; border: 1px solid #c9b4bd; }
@@ -468,3 +473,5 @@ button {
   width: 42px; height: 42px; min-height: 42px; padding: 0; border: 3px solid #4f7b45;
   background: rgba(255, 247, 218, 0.88); color: #d74472; box-shadow: none;
 }
+
+.dialogue-title-moment strong { font-weight: 600; }

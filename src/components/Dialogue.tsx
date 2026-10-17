@@ -4,13 +4,13 @@ import { BOY_SPRITE, GIRL_SPRITE } from '../game/character-sprites';
 import type { GameState } from '../game/types';
 
 const ENDINGS = {
-  yes: 'Теперь официально вместе ❤️ Напиши мне — хочу услышать это от тебя.',
-  no: 'Мне жаль, я надеялся на другой ответ. Немного грустно, но я уважаю твоё решение. Если захочешь, можешь написать мне и сказать об этом сама. А если не хочется — можешь ничего не писать. Я пойму.',
+  yes: 'Теперь официально вместе ❤️ Напиши мне, хочу услышать это от тебя.',
+  no: 'Мне жаль, я надеялся на другой ответ. Немного грустно, но я уважаю твоё решение. Если захочешь, можешь написать мне и сказать об этом сама. А если не хочется, можешь ничего не писать. Я пойму.',
 };
 
 const dialogueSizes = [
   ...DIALOGUE.flatMap((line) => [line.text, ...(line.options?.map((option) => option.reaction) ?? [])]),
-  'Теперь официально вместе. Следующее приключение — уже наше ❤️',
+  'Теперь официально вместе. Следующее приключение уже наше ❤️',
 ];
 
 export default function Dialogue({ state, setState, onMainMenu, musicControl }: {
@@ -47,7 +47,10 @@ export default function Dialogue({ state, setState, onMainMenu, musicControl }: 
         </div>
         <div className="dialogue-copy">
           {!completed && dialogueSizes.map((sample, index) => <p className="dialogue-measure" aria-hidden="true" key={index}>{sample}</p>)}
-          <p>{text}</p>
+          <p className={line.emphasis && !scene.reaction && !completed ? 'dialogue-title-moment' : undefined}>
+            {line.emphasis && !scene.reaction && !completed
+              ? <>Остался <strong>последний вопрос</strong>.</> : text}
+          </p>
         </div>
       </div>
       <div className="dialogue-actions">

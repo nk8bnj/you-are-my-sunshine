@@ -31,7 +31,7 @@ export function createGameAudio(): GameAudio {
 
   const getMusic = () => {
     if (!music) {
-      music = new Audio('/assets/203099__benpm__groove-music.wav');
+      music = new Audio('/assets/town-theme.mp3');
       music.loop = true;
       music.volume = targetVolume;
       music.preload = 'auto';

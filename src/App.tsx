@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Music, VolumeX } from 'lucide-react';
+import { Check, Music, VolumeX, X } from 'lucide-react';
 import GameCanvas from './components/GameCanvas';
 import Hud from './components/Hud';
 import Dialogue from './components/Dialogue';
@@ -43,7 +43,7 @@ function createInitialGameState(restore = true): GameState {
     if (preview === 'ending' || preview === 'question') {
       // Run the normal entrance first so the final preview has the same camera framing.
       for (let frame = 0; frame < 600 && scene.phase === 'meeting'; frame++) scene = updateGame(scene, .04, viewport);
-      return { ...scene, phase: preview === 'question' ? 'dialogue' : 'complete', scene: scene.scene ? { ...scene.scene, dialogueIndex: DIALOGUE.length - 1, answer: preview === 'question' ? null : 'yes' } : null };
+      return { ...scene, phase: preview === 'question' ? 'dialogue' : 'complete', scene: scene.scene ? { ...scene.scene, dialogueIndex: new URLSearchParams(window.location.search).get('moment') === 'title' ? DIALOGUE.findIndex((line) => line.emphasis) : DIALOGUE.length - 1, answer: preview === 'question' ? null : 'yes' } : null };
     }
     return scene;
   }
@@ -61,7 +61,8 @@ export default function App() {
   useEffect(() => () => {
     if (startTimerRef.current !== null) clearTimeout(startTimerRef.current);
   }, []);
-  const [musicEnabled, setMusicEnabled] = useState(() => { try { return localStorage.getItem('flower-heart-music') !== 'off'; } catch { return true; } });
+  const [musicEnabled, setMusicEnabled] = useState(() => { try { return localStorage.getItem('flower-heart-music') === 'on'; } catch { return false; } });
+  const musicChoiceRef = useRef(musicEnabled);
   const isSpritePreview = new URLSearchParams(window.location.search).get('preview') === 'characters';
   const [previewFacing, setPreviewFacing] = useState<Character['facing']>('front');
   const [previewWalking, setPreviewWalking] = useState(false);
@@ -134,6 +135,27 @@ export default function App() {
     try { localStorage.setItem('flower-heart-music', playing ? 'on' : 'off'); } catch { /* Optional setting. */ }
   }, [audio]);
 
+  const setMenuMusic = (enabled: boolean) => {
+    musicChoiceRef.current = enabled;
+    setMusicEnabled(enabled);
+    triedAutoplayRef.current = true;
+    try { localStorage.setItem('flower-heart-music', enabled ? 'on' : 'off'); } catch { /* Optional setting. */ }
+    if (!enabled) {
+      audio.stopMusic();
+      setMusicPlaying(false);
+      return;
+    }
+    void audio.startMusic().then((playing) => {
+      if (!musicChoiceRef.current) { audio.stopMusic(); return; }
+      setMusicPlaying(playing);
+      if (!playing) {
+        setMusicEnabled(false);
+        musicChoiceRef.current = false;
+        try { localStorage.setItem('flower-heart-music', 'off'); } catch { /* Optional setting. */ }
+      }
+    });
+  };
+
   const tryStartMusic = useCallback(() => {
     setIntroBubbleLeaving(true);
     if (triedAutoplayRef.current || musicPlaying) {
@@ -154,8 +176,6 @@ export default function App() {
 
   const returnToMenu = () => {
     persist();
-    audio.stopMusic();
-    setMusicPlaying(false);
     setRevealing(false);
     setStarting(false);
     setStarted(false);
@@ -182,13 +202,13 @@ export default function App() {
         <div className="start-garden" aria-hidden="true"><div className="start-trail" /></div>
         <div className="start-card">
           <span className="start-eyebrow">МАЛЕНЬКОЕ ПРИКЛЮЧЕНИЕ ДЛЯ ТЕБЯ</span>
-          <h1>Последний<br />вопрос</h1>
+          <h1>"Последний<br />вопрос"</h1>
           <div className="start-character" role="img" aria-label="Твоя героиня"><img src="/assets/girl-sprite-v2.png" alt="" /></div>
-          <p className="start-description">Немного цветов, немного разговоров.<br />А дальше — узнаешь.</p>
-          <label className="start-music"><Music size={18} aria-hidden="true" /><span>Музыка</span><input type="checkbox" checked={musicEnabled} onChange={(event) => {
-            setMusicEnabled(event.target.checked);
-            try { localStorage.setItem('flower-heart-music', event.target.checked ? 'on' : 'off'); } catch { /* Optional setting. */ }
-          }} /></label>
+          <p className="start-description">Немного цветов, немного разговоров.<br />А дальше...</p>
+          <button type="button" className="start-music" role="switch" aria-checked={musicEnabled} aria-label="Музыка" onClick={() => setMenuMusic(!musicEnabled)}>
+            <Music size={18} aria-hidden="true" /><span>Музыка</span>
+            <span className="start-music-state" aria-hidden="true">{musicEnabled ? <Check size={22} /> : <X size={22} />}</span>
+          </button>
           <button type="button" className="start-primary" disabled={starting} onClick={() => startGame(false)}>{hasProgress ? 'Продолжить' : 'Старт'}</button>
           {hasProgress ? <button type="button" className="start-secondary" disabled={starting} onClick={() => startGame(true)}>Начать заново</button> : null}
           <span className="start-footnote">Играй в своём темпе</span>
