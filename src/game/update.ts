@@ -54,18 +54,32 @@ export function updateGame(current: GameState, seconds: number, viewport: { widt
       character = walk(character, seconds, MEETING_WALK_SPEED);
       if (!character.isWalking) {
         character = { ...character, facing: 'right' };
-        scene.stage = 'entering';
-        scene.companion = { ...scene.companion, isWalking: true };
       }
     } else {
       scene.companion = walk(scene.companion, seconds, MEETING_WALK_SPEED);
-      if (!scene.companion.isWalking) scene.stage = 'talking';
     }
     // Keep three answer buttons below the actors even on short phone screens.
     const feetY = Math.min(viewport.height * .65, viewport.height - 270);
-    const focus: Vector = { x: WORLD.width / 2, y: character.target.y + viewport.height / 2 - feetY + 18 };
+    const focus: Vector = {
+      x: scene.stage === 'positioning' && character.isWalking ? character.position.x : WORLD.width / 2,
+      y: character.position.y + viewport.height / 2 - feetY + 18,
+    };
+    // Follow her actual walk, rather than aiming at the distant meeting point.
+    // Time-based easing and a speed limit avoid a fast initial camera jump.
+    const eased = updateCamera(current.camera.position, focus, viewport, WORLD, 1 - Math.exp(-3 * seconds));
+    const cameraPosition = moveToward(current.camera.position, eased, 150, seconds).position;
+    const destination = updateCamera(cameraPosition, focus, viewport, WORLD, 1);
+    const cameraSettled = Math.hypot(destination.x - cameraPosition.x, destination.y - cameraPosition.y) < 1;
+    if (scene.stage === 'positioning' && !character.isWalking && cameraSettled) {
+      scene.stage = 'entering';
+      scene.companion = { ...scene.companion,
+        position: { x: cameraPosition.x + viewport.width / 2 + 90, y: character.position.y },
+        isWalking: true };
+    }
+    if (scene.stage === 'entering' && !scene.companion.isWalking
+      && cameraSettled) scene.stage = 'talking';
     return { ...current, character, scene, phase: scene.stage === 'talking' ? 'dialogue' : 'meeting',
-      camera: { position: updateCamera(current.camera.position, focus, viewport, WORLD, WORLD.cameraEase) } };
+      camera: { position: cameraPosition } };
   }
   if (current.phase !== 'collecting') return current;
   const character = walk(current.character, seconds);

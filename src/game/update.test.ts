@@ -45,6 +45,34 @@ describe('bouquet meeting', () => {
     expect(feetY).toBeLessThan(phone.height - 260);
     expect(feetY).toBeGreaterThan(180);
   });
+
+  it('moves the camera smoothly from a distant flower to the meeting', () => {
+    const start = initial();
+    start.character.position = { x: 600, y: 150 };
+    start.character.target = { ...start.character.position };
+    start.camera.position = { x: 525, y: 422 };
+    let state = beginMeeting(start, viewport);
+    let frames = 0;
+    while (state.phase === 'meeting' && frames < 1000) {
+      const previous = state.camera.position;
+      const previousEntering = state.scene?.stage === 'entering';
+      state = updateGame(state, .04, viewport);
+      if (state.scene?.stage === 'positioning') {
+        expect(state.scene.companion.isWalking).toBe(false);
+      } else if (state.scene?.stage === 'entering' && !previousEntering) {
+        expect(state.character.isWalking).toBe(false);
+        expect(state.scene.companion.position.x - state.camera.position.x).toBeGreaterThan(viewport.width / 2 + 80);
+      }
+      expect(Math.hypot(state.camera.position.x - previous.x, state.camera.position.y - previous.y))
+        .toBeLessThanOrEqual(150 * .04 + .00001);
+      frames++;
+    }
+    expect(state.phase).toBe('dialogue');
+    expect(state.character.isWalking).toBe(false);
+    expect(state.scene?.companion.isWalking).toBe(false);
+    const settled = updateGame(state, .04, viewport);
+    expect(settled.camera.position).toEqual(state.camera.position);
+  });
 });
 
 describe('dialogue progression', () => {

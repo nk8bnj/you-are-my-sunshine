@@ -13,8 +13,8 @@ const dialogueSizes = [
   'Теперь официально вместе. Следующее приключение уже наше ❤️',
 ];
 
-export default function Dialogue({ state, setState, onMainMenu, musicControl }: {
-  state: GameState; setState: Dispatch<SetStateAction<GameState>>; onMainMenu: () => void; musicControl: ReactNode;
+export default function Dialogue({ state, setState, onMainMenu, musicControl, onAccept }: {
+  state: GameState; setState: Dispatch<SetStateAction<GameState>>; onMainMenu: () => void; musicControl: ReactNode; onAccept: () => void;
 }) {
   const scene = state.scene;
   if (!scene) return null;
@@ -35,8 +35,13 @@ export default function Dialogue({ state, setState, onMainMenu, musicControl }: 
     '--portrait-sheet-size': `${1254 * scale}px`,
   } as CSSProperties;
   const text = completed ? ENDINGS[scene.answer === 'yes' ? 'yes' : 'no'] : scene.reaction ?? line.text;
-  const choose = (answer: 'yes' | 'no') => setState((current) => current.scene && current.phase === 'dialogue'
-    ? { ...current, phase: 'complete', scene: { ...current.scene, answer } } : current);
+  const choose = (answer: 'yes' | 'no') => {
+    if (state.phase !== 'dialogue' || !final) return;
+    // Mobile browsers require Web Audio activation inside the actual tap handler.
+    if (answer === 'yes') onAccept();
+    setState((current) => current.scene && current.phase === 'dialogue'
+      ? { ...current, phase: 'complete', scene: { ...current.scene, answer } } : current);
+  };
   return (
     <section className="dialogue-overlay" aria-label="Разговор">
       <div className={`dialogue-bubble${completed ? " dialogue-ending" : ""}`} data-speaker={speaker} aria-live="polite" aria-atomic="true">

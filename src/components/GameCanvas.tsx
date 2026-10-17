@@ -101,7 +101,7 @@ export default function GameCanvas({
             target: { x: 460, y: 900 },
             facing: previewRef.current?.facing ?? 'front',
             isWalking: previewRef.current?.walking ?? false,
-          } : next.scene?.companion ?? null,
+          } : next.scene?.stage === 'positioning' ? null : next.scene?.companion ?? null,
           companionSprite: companionSpriteRef.current,
           flowers: next.flowers,
           decor: next.decor,

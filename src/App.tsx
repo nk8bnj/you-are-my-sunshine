@@ -119,9 +119,6 @@ export default function App() {
       audio.heart();
     }
 
-    if (previousPhaseRef.current !== gameState.phase && gameState.phase === 'complete' && gameState.scene?.answer === 'yes') {
-      audio.success();
-    }
 
     previousCollectedCountRef.current = gameState.collectedOrder.length;
     previousPhaseRef.current = gameState.phase;
@@ -180,6 +177,7 @@ export default function App() {
 
   const startGame = (fromBeginning: boolean) => {
     if (starting) return;
+    audio.unlock();
     if (fromBeginning) restart();
     setStarting(true);
     triedAutoplayRef.current = true;
@@ -216,7 +214,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <section className="phone-stage" aria-label="Flower Heart game">
+      <section className="phone-stage" aria-label="Flower Heart game" onPointerDownCapture={() => audio.unlock()}>
         {revealing ? <div className="game-reveal" aria-hidden="true" onAnimationEnd={() => setRevealing(false)} /> : null}
         <GameCanvas
           preview={isSpritePreview ? { facing: previewFacing, walking: previewWalking } : undefined}
@@ -244,7 +242,7 @@ export default function App() {
           </div>
         ) : null}
         {gameState.phase === 'meeting' ? <div className={`meeting-note${gameState.scene?.stage === 'entering' ? ' meeting-note-leaving' : ''}`} role="status">Букет готов. Кажется, кто-то идёт…</div> : null}
-        {(gameState.phase === 'dialogue' || gameState.phase === 'complete') ? <Dialogue musicControl={musicControl} state={gameState} setState={setGameState} onMainMenu={returnToMenu} /> : null}
+        {(gameState.phase === 'dialogue' || gameState.phase === 'complete') ? <Dialogue onAccept={audio.success} musicControl={musicControl} state={gameState} setState={setGameState} onMainMenu={returnToMenu} /> : null}
         {gameState.phase !== 'dialogue' && gameState.phase !== 'complete' ? <div className="corner-actions">{musicControl}</div> : null}
       </section>
     </main>

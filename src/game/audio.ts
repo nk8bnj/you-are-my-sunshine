@@ -1,4 +1,5 @@
 type GameAudio = {
+  unlock: () => void;
   flower: () => void;
   heart: () => void;
   success: () => void;
@@ -23,7 +24,7 @@ export function createGameAudio(): GameAudio {
     }
 
     if (context.state === 'suspended') {
-      void context.resume();
+      void context.resume().catch(() => {});
     }
 
     return context;
@@ -76,7 +77,7 @@ export function createGameAudio(): GameAudio {
 
       const instance = sample.cloneNode(true) as HTMLAudioElement;
       instance.volume = sample.volume;
-      void instance.play();
+      void instance.play().catch(() => {});
     } catch {
       // Sample audio is decorative; blocked audio should never break the game.
     }
@@ -122,6 +123,9 @@ export function createGameAudio(): GameAudio {
   };
 
   return {
+    unlock: () => {
+      try { getContext(); } catch { /* Audio is optional on unsupported devices. */ }
+    },
     flower: () => playSample('flower-sample', getFlowerSample()),
     heart: () => {
       playSoftChord('heart-appear', [523, 659, 784], 0.18);
