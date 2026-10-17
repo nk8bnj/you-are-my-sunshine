@@ -63,6 +63,7 @@ export type GameState = {
     reaction: string | null;
     answer: 'yes' | 'no' | null;
     proposalPauseMs: number;
+    turnAwayMs?: number;
   } | null;
   character: Character;
   camera: Camera;

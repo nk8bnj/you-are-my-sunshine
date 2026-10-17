@@ -24,6 +24,18 @@ export function beginMeeting(state: GameState, viewport: { width: number; height
 }
 
 export function updateGame(current: GameState, seconds: number, viewport: { width: number; height: number }): GameState {
+  if (current.phase === 'complete' && current.scene?.answer === 'no') {
+    const elapsed = current.scene.turnAwayMs ?? 0;
+    if (elapsed >= 1100) return current;
+    const nextElapsed = Math.min(1100, elapsed + seconds * 1000);
+    const girlFacing = nextElapsed < 350 ? 'right' : nextElapsed < 430 ? 'front' : 'left';
+    const boyFacing = nextElapsed < 500 ? 'left' : nextElapsed < 580 ? 'front' : 'right';
+    return { ...current,
+      character: { ...current.character, facing: girlFacing, isWalking: false },
+      scene: { ...current.scene, turnAwayMs: nextElapsed,
+        companion: { ...current.scene.companion, facing: boyFacing, isWalking: false } },
+    };
+  }
   if (current.phase === 'complete' && current.scene?.answer === 'yes') {
     const companion = current.scene.companion;
     const center = (current.character.target.x + companion.target.x) / 2;

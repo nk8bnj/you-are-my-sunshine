@@ -33,6 +33,7 @@ export function restoreProgress(fresh: GameState, storage: Pick<Storage, 'getIte
       if (!Number.isInteger(scene.dialogueIndex) || scene.dialogueIndex < 0 || scene.dialogueIndex >= DIALOGUE.length) return fresh;
       if (scene.reaction !== null && !DIALOGUE[scene.dialogueIndex].options?.some((option) => option.reaction === scene.reaction)) return fresh;
       if (!Number.isFinite(scene.proposalPauseMs) || scene.proposalPauseMs < 0 || scene.proposalPauseMs > 1200) return fresh;
+      if (scene.turnAwayMs !== undefined && (!Number.isFinite(scene.turnAwayMs) || scene.turnAwayMs < 0 || scene.turnAwayMs > 1100)) return fresh;
       if (s.phase === 'complete' ? !['yes', 'no'].includes(scene.answer ?? '') : scene.answer !== null) return fresh;
     }
     return { ...fresh, phase: s.phase, character: s.character, camera: s.camera, scene: s.scene,
