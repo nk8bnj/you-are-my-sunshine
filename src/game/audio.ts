@@ -14,7 +14,7 @@ export function createGameAudio(): GameAudio {
   let context: AudioContext | null = null;
   let music: HTMLAudioElement | null = null;
   let flowerSample: HTMLAudioElement | null = null;
-  let targetVolume = 0.12;
+  let targetVolume = 0.08;
   let fadeFrame = 0;
   const lastPlayedAt = new Map<string, number>();
 
@@ -100,8 +100,8 @@ export function createGameAudio(): GameAudio {
       oscillator.frequency.value = frequency;
       const startAt = audio.currentTime + delay;
       gain.gain.setValueAtTime(0.001, startAt);
-      gain.gain.exponentialRampToValueAtTime(0.12, startAt + 0.012);
-      gain.gain.setValueAtTime(0.12, startAt + Math.min(0.07, duration / 3));
+      gain.gain.exponentialRampToValueAtTime(0.2, startAt + 0.012);
+      gain.gain.setValueAtTime(0.2, startAt + Math.min(0.07, duration / 3));
       gain.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
 
       oscillator.connect(gain);
@@ -148,7 +148,7 @@ export function createGameAudio(): GameAudio {
     },
     isMusicPlaying: () => Boolean(music && !music.paused),
     setQuiet: (quiet) => {
-      targetVolume = quiet ? 0.045 : 0.12;
+      targetVolume = quiet ? 0.03 : 0.08;
       cancelAnimationFrame(fadeFrame);
       if (!music) return;
       const track = music;
