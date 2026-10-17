@@ -61,7 +61,7 @@ export default function App() {
   useEffect(() => () => {
     if (startTimerRef.current !== null) clearTimeout(startTimerRef.current);
   }, []);
-  const [musicEnabled, setMusicEnabled] = useState(() => { try { return localStorage.getItem('flower-heart-music') === 'on'; } catch { return false; } });
+  const [musicEnabled, setMusicEnabled] = useState(false);
   const musicChoiceRef = useRef(musicEnabled);
   const isSpritePreview = new URLSearchParams(window.location.search).get('preview') === 'characters';
   const [previewFacing, setPreviewFacing] = useState<Character['facing']>('front');
@@ -132,14 +132,12 @@ export default function App() {
     triedAutoplayRef.current = true;
     setMusicPlaying(playing);
     setMusicEnabled(playing);
-    try { localStorage.setItem('flower-heart-music', playing ? 'on' : 'off'); } catch { /* Optional setting. */ }
   }, [audio]);
 
   const setMenuMusic = (enabled: boolean) => {
     musicChoiceRef.current = enabled;
     setMusicEnabled(enabled);
     triedAutoplayRef.current = true;
-    try { localStorage.setItem('flower-heart-music', enabled ? 'on' : 'off'); } catch { /* Optional setting. */ }
     if (!enabled) {
       audio.stopMusic();
       setMusicPlaying(false);
@@ -151,7 +149,6 @@ export default function App() {
       if (!playing) {
         setMusicEnabled(false);
         musicChoiceRef.current = false;
-        try { localStorage.setItem('flower-heart-music', 'off'); } catch { /* Optional setting. */ }
       }
     });
   };
