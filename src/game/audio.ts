@@ -14,7 +14,7 @@ export function createGameAudio(): GameAudio {
   let context: AudioContext | null = null;
   let music: HTMLAudioElement | null = null;
   let flowerSample: HTMLAudioElement | null = null;
-  let targetVolume = 0.18;
+  let targetVolume = 0.12;
   let fadeFrame = 0;
   const lastPlayedAt = new Map<string, number>();
 
@@ -147,7 +147,7 @@ export function createGameAudio(): GameAudio {
     },
     isMusicPlaying: () => Boolean(music && !music.paused),
     setQuiet: (quiet) => {
-      targetVolume = quiet ? 0.065 : 0.18;
+      targetVolume = quiet ? 0.045 : 0.12;
       cancelAnimationFrame(fadeFrame);
       if (!music) return;
       const track = music;
