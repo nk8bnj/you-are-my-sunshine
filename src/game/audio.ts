@@ -100,7 +100,8 @@ export function createGameAudio(): GameAudio {
       oscillator.frequency.value = frequency;
       const startAt = audio.currentTime + delay;
       gain.gain.setValueAtTime(0.001, startAt);
-      gain.gain.exponentialRampToValueAtTime(0.042, startAt + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.12, startAt + 0.012);
+      gain.gain.setValueAtTime(0.12, startAt + Math.min(0.07, duration / 3));
       gain.gain.exponentialRampToValueAtTime(0.001, startAt + duration);
 
       oscillator.connect(gain);
@@ -118,7 +119,7 @@ export function createGameAudio(): GameAudio {
 
   const playSoftChord = (key: string, frequencies: number[], duration: number, delay = 0) => {
     for (const [index, frequency] of frequencies.entries()) {
-      play(`${key}-${index}`, frequency, duration, index === frequencies.length - 1 ? 'sine' : 'triangle', delay + index * 0.045);
+      play(`${key}-${index}`, frequency, duration, 'triangle', delay + index * 0.045);
     }
   };
 
@@ -128,12 +129,12 @@ export function createGameAudio(): GameAudio {
     },
     flower: () => playSample('flower-sample', getFlowerSample()),
     heart: () => {
-      playSoftChord('heart-appear', [523, 659, 784], 0.18);
-      window.setTimeout(() => play('heart-air', 1047, 0.24, 'sine'), 120);
+      playSoftChord('heart-appear', [523, 659, 784], 0.3);
+      window.setTimeout(() => play('heart-air', 1047, 0.34, 'triangle'), 120);
     },
     success: () => {
-      playSoftChord('heart-found', [659, 784, 988], 0.2);
-      window.setTimeout(() => playSoftChord('heart-found-glow', [784, 1047], 0.24), 120);
+      playSoftChord('heart-found', [659, 784, 988], 0.32);
+      window.setTimeout(() => playSoftChord('heart-found-glow', [784, 1047], 0.38), 120);
     },
     startMusic,
     stopMusic,
